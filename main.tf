@@ -78,6 +78,70 @@ resource "aws_api_gateway_method" "api_method" {
 }
 
 
+#* policy 
+resource "aws_iam_policy" "lambda_policy" {
+  name = "dynamodb_crud"
+  path = "/"
+  policy = jsonencode(
+    {
+      Statement = [
+        {
+          Action = [
+            "dynamodb:BatchGetItem",
+            "dynamodb:PutItem",
+            "dynamodb:DeleteItem",
+            "dynamodb:GetItem",
+            "dynamodb:Scan",
+            "dynamodb:Query",
+            "dynamodb:UpdateItem",
+          ]
+          Effect   = "Allow"
+          Resource = "arn:aws:dynamodb:eu-central-1:109028672636:table/books"
+          Sid      = "VisualEditor0"
+        },
+        {
+          Action = [
+            "dynamodb:ListGlobalTables",
+            "dynamodb:ListTables",
+          ]
+          Effect   = "Allow"
+          Resource = "*"
+          Sid      = "VisualEditor1"
+        },
+      ]
+      Version = "2012-10-17"
+    }
+  )
+}
+
+#* role 
+resource "aws_iam_role" "tf_iam_role" {
+  assume_role_policy = jsonencode(
+    {
+      Statement = [
+        {
+          Action = "sts:AssumeRole"
+          Effect = "Allow"
+          Principal = {
+            Service = "lambda.amazonaws.com"
+          }
+        },
+      ]
+      Version = "2012-10-17"
+    }
+  )
+  description           = "Allows Lambda functions to call AWS services on your behalf."
+  force_detach_policies = false
+  managed_policy_arns = [
+    "arn:aws:iam::109028672636:policy/dynamodb_crud",
+  ]
+  name = "api-dynamodby"
+  path = "/"
+
+
+}
+
+
 #* lambda
 # resource "aws_lambda_function" "api-lambda" {
 #   #   architectures                  = [
