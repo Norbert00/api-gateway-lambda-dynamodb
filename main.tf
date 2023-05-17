@@ -75,39 +75,40 @@ resource "aws_api_gateway_method" "api_method" {
 
 
 #* policy 
+data "aws_iam_policy_document" "policy" {
+  statement {
+    sid = "VisualEditor0"
+
+    actions = [
+      "dynamodb:BatchGetItem",
+      "dynamodb:PutItem",
+      "dynamodb:DeleteItem",
+      "dynamodb:GetItem",
+      "dynamodb:Scan",
+      "dynamodb:Query",
+      "dynamodb:UpdateItem",
+    ]
+
+    resources = [
+      "arn:aws:dynamodb:eu-central-1:109028672636:table/books"
+    ]
+  }
+
+  statement {
+    actions = [
+      "dynamodb:ListGlobalTables",
+      "dynamodb:ListTables",
+    ]
+    resources = ["arn:aws:dynamodb:eu-central-1:109028672636:*"]
+  }
+}
+
+
+
 resource "aws_iam_policy" "lambda_policy" {
-  name = "dynamodb_crud"
-  path = "/"
-  policy = jsonencode(
-    {
-      Statement = [
-        {
-          Action = [
-            "dynamodb:BatchGetItem",
-            "dynamodb:PutItem",
-            "dynamodb:DeleteItem",
-            "dynamodb:GetItem",
-            "dynamodb:Scan",
-            "dynamodb:Query",
-            "dynamodb:UpdateItem",
-          ]
-          Effect   = "Allow"
-          Resource = "arn:aws:dynamodb:eu-central-1:109028672636:table/books"
-          Sid      = "VisualEditor0"
-        },
-        {
-          Action = [
-            "dynamodb:ListGlobalTables",
-            "dynamodb:ListTables",
-          ]
-          Effect   = "Allow"
-          Resource = "*"
-          Sid      = "VisualEditor1"
-        },
-      ]
-      Version = "2012-10-17"
-    }
-  )
+  name   = "dynamodb_crud"
+  path   = "/"
+  policy = data.aws_iam_policy_document.policy.json
 }
 
 #* policy attachment
@@ -143,3 +144,29 @@ resource "aws_iam_role" "tf_iam_role" {
 
 
 #* lambda
+resource "aws_lambda_function" "lambda" {
+  function_name = "api-lambda"
+  handler       = "lambda_function.lambda_handler"
+  memory_size = 128
+  role     = "arn:aws:iam::109028672636:role/api-dynamodby"
+  runtime  = "python3.9"
+  filename = data.archive_file.lambda.output_path
+  
+  lifecycle {
+    ignore_changes = [filename, ]
+  }
+
+data "archive_file" "lambda" {
+  type        = "zip"
+  source_file = "api-lambda.py"
+  output_path = "./outputs/api-lambda.zip"
+}
+
+
+resource "aws_lambda_permission" "allow_api_gateway" {
+  action        = "lambda:InvokeFunction"
+  function_name = "arn:aws:lambda:eu-central-1:109028672636:function:api-lambda"
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "arn:aws:execute-api:eu-central-1:109028672636:ixgf79heae/*/GET/books"
+}
+
