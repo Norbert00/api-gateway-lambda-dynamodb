@@ -58,15 +58,11 @@ resource "aws_api_gateway_deployment" "api_deployment" {
 
 
 resource "aws_api_gateway_stage" "api_stage" {
-  #arn                   = "arn:aws:apigateway:eu-central-1::/restapis/ixgf79heae/stages/dev"    know after deployment
   cache_cluster_enabled = false
   deployment_id         = "zefn9o"
-  #execution_arn         = "arn:aws:execute-api:eu-central-1:109028672636:ixgf79heae/dev" know after deployment
-  #id                    = "ags-ixgf79heae-dev" know after deployment
-  #invoke_url            = "https://ixgf79heae.execute-api.eu-central-1.amazonaws.com/dev" know after deployment
-  rest_api_id          = "ixgf79heae"
-  stage_name           = "dev"
-  xray_tracing_enabled = false
+  rest_api_id           = "ixgf79heae"
+  stage_name            = "dev"
+  xray_tracing_enabled  = false
 }
 
 resource "aws_api_gateway_method" "api_method" {
@@ -114,6 +110,12 @@ resource "aws_iam_policy" "lambda_policy" {
   )
 }
 
+#* policy attachment
+resource "aws_iam_role_policy_attachment" "policy_attach" {
+  policy_arn = "arn:aws:iam::109028672636:policy/dynamodb_crud"
+  role       = "api-dynamodb"
+}
+
 #* role 
 resource "aws_iam_role" "tf_iam_role" {
   assume_role_policy = jsonencode(
@@ -135,176 +137,9 @@ resource "aws_iam_role" "tf_iam_role" {
   managed_policy_arns = [
     "arn:aws:iam::109028672636:policy/dynamodb_crud",
   ]
-  name = "api-dynamodby"
+  name = "api-dynamodb"
   path = "/"
-
-
 }
 
 
 #* lambda
-# resource "aws_lambda_function" "api-lambda" {
-#   #   architectures                  = [
-#   #     "x86_64",
-#   # ]
-#   # arn                            = "arn:aws:lambda:eu-central-1:109028672636:function:api-lambda"
-#   function_name = "api-lambda"
-#   handler       = "lambda_function.lambda_handler"
-#   #id                             = "api-lambda"
-#   # invoke_arn                     = "arn:aws:apigateway:eu-central-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-central-1:109028672636:function:api-lambda/invocations"
-#   #last_modified                  = "2023-04-26T15:31:04.000+0000"
-#   #layers                         = []
-#   #memory_size                    = 128
-#   package_type = "Zip"
-#   #qualified_arn                  = "arn:aws:lambda:eu-central-1:109028672636:function:api-lambda:$LATEST"
-#   #qualified_invoke_arn           = "arn:aws:apigateway:eu-central-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-central-1:109028672636:function:api-lambda:$LATEST/invocations"
-#   #reserved_concurrent_executions = -1
-#   role    = "arn:aws:iam::109028672636:role/api-dynamodby"
-#   runtime = "python3.9"
-#   # skip_destroy                   = false
-#   # source_code_hash               = "1+WDoEvg2pSKt/mCAv7i1XVBX57/GZvQpyI9JoxDBqc="
-#   # source_code_size               = 283
-#   # tags                           = {}
-#   # tags_all                       = {}
-#   # timeout                        = 3
-#   # version                        = "$LATEST"
-
-#   # ephemeral_storage {
-#   #     size = 512
-#   # }
-
-#   # tracing_config {
-#   #     mode = "PassThrough"
-#   # }
-# }
-#* lambda trigger
-# resource "aws_lambda_permission" "lambda_permission" {
-#   action        = "lambda:InvokeFunction"
-#   function_name = "api-lambda"
-#   principal     = "apigateway.amazonaws.com"
-#   source_arn    = "${aws_api_gateway_rest_api.books_api.execution_arn}/*"
-# }
-
-
-
-# data "aws_iam_policy_document" "lambda_policy" {
-#   statement {
-#     effect = "Allow"
-#     actions = [
-#       "dynamodb:DescribeContributorInsights",
-#       "dynamodb:RestoreTableToPointInTime",
-#       "dynamodb:UpdateGlobalTable",
-#       "dynamodb:DeleteTable",
-#       "dynamodb:UpdateTableReplicaAutoScaling",
-#       "dynamodb:DescribeTable",
-#       "dynamodb:PartiQLInsert",
-#       "dynamodb:GetItem",
-#       "dynamodb:DescribeContinuousBackups",
-#       "dynamodb:DescribeExport",
-#       "dynamodb:ListImports",
-#       "dynamodb:EnableKinesisStreamingDestination",
-#       "dynamodb:BatchGetItem",
-#       "dynamodb:DisableKinesisStreamingDestination",
-#       "dynamodb:UpdateTimeToLive",
-#       "dynamodb:BatchWriteItem",
-#       "dynamodb:PutItem",
-#       "dynamodb:PartiQLUpdate",
-#       "dynamodb:Scan",
-#       "dynamodb:StartAwsBackupJob",
-#       "dynamodb:UpdateItem",
-#       "dynamodb:UpdateGlobalTableSettings",
-#       "dynamodb:CreateTable",
-#       "dynamodb:RestoreTableFromAwsBackup",
-#       "dynamodb:GetShardIterator",
-#       "dynamodb:DescribeReservedCapacity",
-#       "dynamodb:ExportTableToPointInTime",
-#       "dynamodb:DescribeEndpoints",
-#       "dynamodb:DescribeBackup",
-#       "dynamodb:UpdateTable",
-#       "dynamodb:GetRecords",
-#       "dynamodb:DescribeTableReplicaAutoScaling",
-#       "dynamodb:DescribeImport",
-#       "dynamodb:ListTables",
-#       "dynamodb:DeleteItem",
-#       "dynamodb:PurchaseReservedCapacityOfferings",
-#       "dynamodb:CreateTableReplica",
-#       "dynamodb:ListTagsOfResource",
-#       "dynamodb:UpdateContributorInsights",
-#       "dynamodb:CreateBackup",
-#       "dynamodb:UpdateContinuousBackups",
-#       "dynamodb:DescribeReservedCapacityOfferings",
-#       "dynamodb:PartiQLSelect",
-#       "dynamodb:UpdateGlobalTableVersion",
-#       "dynamodb:CreateGlobalTable",
-#       "dynamodb:DescribeKinesisStreamingDestination",
-#       "dynamodb:DescribeLimitsresource "aws_lambda_function" "api-lambda" {
-#   #   architectures                  = [
-#   #     "x86_64",
-#   # ]
-#   # arn                            = "arn:aws:lambda:eu-central-1:109028672636:function:api-lambda"
-#   function_name = "api-lambda"
-#   handler       = "lambda_function.lambda_handler"
-#   #id                             = "api-lambda"
-#   # invoke_arn                     = "arn:aws:apigateway:eu-central-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-central-1:109028672636:function:api-lambda/invocations"
-#   #last_modified                  = "2023-04-26T15:31:04.000+0000"
-#   #layers                         = []
-#   #memory_size                    = 128
-#   package_type = "Zip"
-#   #qualified_arn                  = "arn:aws:lambda:eu-central-1:109028672636:function:api-lambda:$LATEST"
-#   #qualified_invoke_arn           = "arn:aws:apigateway:eu-central-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-central-1:109028672636:function:api-lambda:$LATEST/invocations"
-#   #reserved_concurrent_executions = -1
-#   role    = "arn:aws:iam::109028672636:role/api-dynamodby"
-#   runtime = "python3.9"
-#   # skip_destroy                   = false
-#   # source_code_hash               = "1+WDoEvg2pSKt/mCAv7i1XVBX57/GZvQpyI9JoxDBqc="
-#   # source_code_size               = 283
-#   # tags                           = {}
-#   # tags_all                       = {}
-#   # timeout                        = 3
-#   # version                        = "$LATEST"
-
-#   # ephemeral_storage {
-#   #     size = 512
-#   # }
-
-#   # tracing_config {
-#   #     mode = "PassThrough"
-#   # }Item",
-#       "dynamodb:ListBackups",
-#       "dynamodb:Query",
-#       "dynamodb:DescribeStream",
-#       "dynamodb:DeleteTableReplica",
-#       "dynamodb:DescribeTimeToLive",
-#       "dynamodb:ListStreams",
-#       "dynamodb:ListContributorInsights",
-#       "dynamodb:DescribeGlobalTableSettings",
-#       "dynamodb:ListGlobalTables",
-#       "dynamodb:DescribeGlobalTable",
-#       "dynamodb:RestoreTableFromBackup",
-#       "dynamodb:DeleteBackup",
-#       "dynamodb:PartiQLDelete"
-#     ]
-#     resources = ["arn:aws:apigateway:eu-central-1::/restapis/ixgf79heae/stages/dev"]
-#   }
-# }
-
-
-# data "aws_iam_policy_document" "assume_role" {
-#   statement {
-#     effect = "Allow"
-
-#     principals {
-#       type        = "Service"
-#       identifiers = ["lambda.amazonaws.com"]
-#     }
-
-#     actions = ["sts:AssumeRole"]
-#   }
-# }
-
-
-# resource "aws_iam_role" "api" {
-#   name               = "api-dynamodby"
-#   path               = "/"
-#   assume_role_policy = data.aws_iam_policy_document.lambda_policy.json
-# }
