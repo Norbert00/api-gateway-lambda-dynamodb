@@ -89,8 +89,16 @@ resource "aws_api_gateway_deployment" "api_deployment" {
   }
 }
 
+#* cloudwatch
+resource "aws_cloudwatch_log_group" "log_group" {
+  name              = "/aws/lambda/tf-lambda_api_gateway_dynamodb"
+  retention_in_days = 14
+}
+
 
 #*  policy 
+data "aws_caller_identity" "account_id" {}
+
 data "aws_iam_policy_document" "policy" {
   statement {
     sid = "VisualEditor0"
@@ -106,7 +114,7 @@ data "aws_iam_policy_document" "policy" {
     ]
 
     resources = [
-      "arn:aws:dynamodb:eu-central-1:109028672636:table/books"
+      "arn:aws:dynamodb:eu-central-1:${data.aws_caller_identity.account_id.id}:table/books"
     ]
   }
 
@@ -115,7 +123,16 @@ data "aws_iam_policy_document" "policy" {
       "dynamodb:ListGlobalTables",
       "dynamodb:ListTables",
     ]
-    resources = ["arn:aws:dynamodb:eu-central-1:109028672636:*"]
+    resources = ["arn:aws:dynamodb:eu-central-1:${data.aws_caller_identity.account_id.id}:*"]
+  }
+  statement {
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+    resources = ["arn:aws:logs:*:*:*"]
   }
 }
 
@@ -129,10 +146,10 @@ resource "aws_iam_policy" "lambda_policy" {
 
 #*  policy attachment
 resource "aws_iam_role_policy_attachment" "policy_attach" {
-  policy_arn = "arn:aws:iam::109028672636:policy/dynamodb_crud"
-  role       = "api-dynamodb"
+  policy_arn = aws_iam_policy.lambda_policy.arn
+  role       = aws_iam_role.iam_role.name
 
-  depends_on = [aws_iam_role.iam_role]
+  depends_on = [aws_iam_role.iam_role, aws_iam_policy.lambda_policy]
 }
 
 #*  role 
@@ -153,11 +170,9 @@ resource "aws_iam_role" "iam_role" {
   )
   description           = "Allows Lambda functions to call AWS services on your behalf."
   force_detach_policies = false
-  managed_policy_arns = [
-    "arn:aws:iam::109028672636:policy/dynamodb_crud",
-  ]
-  name = "api-dynamodb"
-  path = "/"
+  managed_policy_arns   = ["${aws_iam_policy.lambda_policy.arn}"]
+  name                  = "api-dynamodb"
+  path                  = "/"
 }
 
 
@@ -169,7 +184,7 @@ resource "aws_lambda_function" "lambda" {
   role          = "arn:aws:iam::109028672636:role/api-dynamodb"
   runtime       = "python3.9"
   filename      = data.archive_file.lambda.output_path
-
+  publish       = true
 
   lifecycle {
     ignore_changes = [filename, ]
@@ -185,8 +200,17 @@ data "archive_file" "lambda" {
 
 resource "aws_lambda_permission" "allow_api_gateway" {
   action        = "lambda:InvokeFunction"
-  function_name = "arn:aws:lambda:eu-central-1:109028672636:function:api-lambda"
+  function_name = aws_lambda_function.lambda.arn
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.books_api.execution_arn}/*/GET/books"
+}
+
+resource "aws_lambda_permission" "allow_cloudwatch" {
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.lambda.arn
+  principal     = "events.amazonaws.com"
+  #source_arn    = "${aws_api_gateway_rest_api.books_api.execution_arn}/*/GET/books"
+  source_arn = "arn:aws:events:eu-central-1:109028672636:rule/logs>"
+
 }
 
