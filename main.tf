@@ -49,19 +49,31 @@ resource "aws_api_gateway_resource" "books_path" {
   path_part   = "books"
 }
 
-resource "aws_api_gateway_method" "api_methods" {
+
+locals {
+  http_methods = {
+    "GET"    = "GET"
+    "POST"   = "POST"
+    "PUT"    = "PUT"
+    "DELETE" = "DELETE"
+  }
+}
+
+
+resource "aws_api_gateway_method" "api_mehtods" {
+  for_each         = local.http_methods
   api_key_required = false
   authorization    = "NONE"
-  http_method      = "GET"
+  http_method      = each.key
   resource_id      = aws_api_gateway_resource.books_path.id
   rest_api_id      = aws_api_gateway_rest_api.books_api.id
-
 }
 
 resource "aws_api_gateway_integration" "integration" {
+  for_each                = local.http_methods
   rest_api_id             = aws_api_gateway_rest_api.books_api.id
   resource_id             = aws_api_gateway_resource.books_path.id
-  http_method             = aws_api_gateway_method.api_methods.http_method
+  http_method             = aws_api_gateway_method.api_mehtods[each.key].http_method
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = aws_lambda_function.lambda.invoke_arn
@@ -82,7 +94,7 @@ resource "aws_api_gateway_stage" "api_stage" {
 resource "aws_api_gateway_deployment" "api_deployment" {
   rest_api_id = aws_api_gateway_rest_api.books_api.id
 
-  depends_on = [aws_api_gateway_method.api_methods, aws_api_gateway_integration.integration]
+  depends_on = [aws_api_gateway_method.api_mehtods, aws_api_gateway_integration.integration]
 
   lifecycle {
     create_before_destroy = false
@@ -189,6 +201,8 @@ resource "aws_lambda_function" "lambda" {
   lifecycle {
     ignore_changes = [filename, ]
   }
+
+  source_code_hash = data.archive_file.lambda.output_base64sha256
 }
 
 data "archive_file" "lambda" {
@@ -199,10 +213,11 @@ data "archive_file" "lambda" {
 
 
 resource "aws_lambda_permission" "allow_api_gateway" {
+  for_each      = local.http_methods
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.lambda.arn
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.books_api.execution_arn}/*/GET/books"
+  source_arn    = "${aws_api_gateway_rest_api.books_api.execution_arn}/*/${aws_api_gateway_method.api_mehtods[each.key].http_method}/books"
 }
 
 resource "aws_lambda_permission" "allow_cloudwatch" {
