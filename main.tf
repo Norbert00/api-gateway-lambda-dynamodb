@@ -209,8 +209,7 @@ resource "aws_lambda_permission" "allow_cloudwatch" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.lambda.arn
   principal     = "events.amazonaws.com"
-  #source_arn    = "${aws_api_gateway_rest_api.books_api.execution_arn}/*/GET/books"
-  source_arn = "arn:aws:events:eu-central-1:109028672636:rule/logs>"
+  source_arn    = "arn:aws:events:eu-central-1:109028672636:rule/logs>"
 
 }
 
