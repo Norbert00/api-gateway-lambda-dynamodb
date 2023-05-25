@@ -1,5 +1,6 @@
 import os
 import boto3
+import json
 
 
 def lambda_handler(event, context):
@@ -9,4 +10,7 @@ def lambda_handler(event, context):
     table = dynamodb.Table("books")
     value_list = table.scan()
 
-    return value_list
+    return {
+        "statusCode": 200,
+        "body": json.dumps({"statusCode": 200, "data": value_list}),
+    }
