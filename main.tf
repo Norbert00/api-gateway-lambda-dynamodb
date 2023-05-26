@@ -110,6 +110,7 @@ resource "aws_cloudwatch_log_group" "log_group" {
 
 #*  policy 
 data "aws_caller_identity" "account_id" {}
+data "aws_region" "current" {}
 
 data "aws_iam_policy_document" "policy" {
   statement {
@@ -126,7 +127,7 @@ data "aws_iam_policy_document" "policy" {
     ]
 
     resources = [
-      "arn:aws:dynamodb:eu-central-1:${data.aws_caller_identity.account_id.id}:table/books"
+      "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.account_id.id}:table/books"
     ]
   }
 
@@ -135,7 +136,7 @@ data "aws_iam_policy_document" "policy" {
       "dynamodb:ListGlobalTables",
       "dynamodb:ListTables",
     ]
-    resources = ["arn:aws:dynamodb:eu-central-1:${data.aws_caller_identity.account_id.id}:*"]
+    resources = ["arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.account_id.id}:*"]
   }
   statement {
     effect = "Allow"
@@ -144,7 +145,8 @@ data "aws_iam_policy_document" "policy" {
       "logs:CreateLogStream",
       "logs:PutLogEvents"
     ]
-    resources = ["arn:aws:logs:*:*:*"]
+    #resources = ["arn:aws:logs:*:*:*"]
+    resources = ["arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.account_id.id}:log-group:${aws_cloudwatch_log_group.log_group.name}:*"]
   }
 }
 
@@ -190,10 +192,10 @@ resource "aws_iam_role" "iam_role" {
 
 #*  lambda
 resource "aws_lambda_function" "lambda" {
-  function_name = "api-lambda"
+  function_name = "tf-lambda_api_gateway_dynamodb"
   handler       = "api-lambda.lambda_handler"
   memory_size   = 128
-  role          = "arn:aws:iam::109028672636:role/api-dynamodb"
+  role          = "arn:aws:iam::${data.aws_caller_identity.account_id.id}:role/api-dynamodb"
   runtime       = "python3.9"
   filename      = data.archive_file.lambda.output_path
   publish       = true
@@ -224,7 +226,6 @@ resource "aws_lambda_permission" "allow_cloudwatch" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.lambda.arn
   principal     = "events.amazonaws.com"
-  source_arn    = "arn:aws:events:eu-central-1:109028672636:rule/logs>"
-
+  source_arn    = "${aws_cloudwatch_log_group.log_group.arn}:*"
 }
 
