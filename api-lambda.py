@@ -10,7 +10,38 @@ def lambda_handler(event, context):
     table = dynamodb.Table("books")
     value_list = table.scan()
 
-    return {
-        "statusCode": 200,
-        "body": json.dumps({"statusCode": 200, "data": value_list}),
-    }
+    if event["httpMethod"] == "GET":
+        return get_request(value_list)
+    elif event["httpMethod"] == "POST":
+        return post_request(table, event)
+    elif event["httpMethod"] == "DELETE":
+        return delete_request(table)
+
+
+def get_request(table):
+    # Handle GET request
+    return
+
+
+def post_request(table, event):
+    # Handle POST request
+    payload = json.loads(event["body"])
+
+    if "bookid" not in payload:
+        return {"statusCode": 400, "body": "Missing 'bookid' attribute in the payload"}
+
+    item = payload
+
+    table.put_item(Item=item)
+
+    return {"statusCode": 200, "body": "POST request processed"}
+
+
+def put_request(table, event):
+    # Handle PUT request
+    return
+
+
+def delete_request(table, event):
+    # Handle DELETE request
+    return
