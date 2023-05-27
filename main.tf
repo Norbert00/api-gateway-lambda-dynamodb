@@ -102,9 +102,10 @@ resource "aws_api_gateway_deployment" "api_deployment" {
 }
 
 #* cloudwatch
-resource "aws_cloudwatch_log_group" "log_group" {
-  name              = "/aws/lambda/tf-lambda_api_gateway_dynamodb"
-  retention_in_days = 14
+module "cloudwatch_logs" {
+  source              = "./modules/cloudwatch"
+  m_name              = "/aws/lambda/tf-lambda_api_gateway_dynamodb"
+  m_retention_in_days = 14
 }
 
 
@@ -145,8 +146,7 @@ data "aws_iam_policy_document" "policy" {
       "logs:CreateLogStream",
       "logs:PutLogEvents"
     ]
-    #resources = ["arn:aws:logs:*:*:*"]
-    resources = ["arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.account_id.id}:log-group:${aws_cloudwatch_log_group.log_group.name}:*"]
+    resources = ["arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.account_id.id}:log-group:${module.cloudwatch_logs.cloudwatch_name}:*"]
   }
 }
 
@@ -226,6 +226,6 @@ resource "aws_lambda_permission" "allow_cloudwatch" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.lambda.arn
   principal     = "events.amazonaws.com"
-  source_arn    = "${aws_cloudwatch_log_group.log_group.arn}:*"
+  source_arn    = "${module.cloudwatch_logs.cloudwatch_arn}:*"
 }
 
