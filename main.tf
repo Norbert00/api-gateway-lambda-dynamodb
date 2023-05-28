@@ -57,6 +57,14 @@ locals {
     "PUT"    = "PUT"
     "DELETE" = "DELETE"
   }
+
+  principals = {
+    "lambda" = {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+
 }
 
 
@@ -161,32 +169,19 @@ resource "aws_iam_policy" "lambda_policy" {
 #*  policy attachment
 resource "aws_iam_role_policy_attachment" "policy_attach" {
   policy_arn = aws_iam_policy.lambda_policy.arn
-  role       = aws_iam_role.iam_role.name
-
-  depends_on = [aws_iam_role.iam_role, aws_iam_policy.lambda_policy]
+  role       = module.iam_role.iam_role_name
+  depends_on = [module.iam_role, aws_iam_policy.lambda_policy]
 }
 
-#*  role 
-resource "aws_iam_role" "iam_role" {
-  assume_role_policy = jsonencode(
-    {
-      Statement = [
-        {
-          Action = "sts:AssumeRole"
-          Effect = "Allow"
-          Principal = {
-            Service = "lambda.amazonaws.com"
-          }
-        },
-      ]
-      Version = "2012-10-17"
-    }
-  )
-  description           = "Allows Lambda functions to call AWS services on your behalf."
-  force_detach_policies = false
-  managed_policy_arns   = ["${aws_iam_policy.lambda_policy.arn}"]
-  name                  = "api-dynamodb"
-  path                  = "/"
+#* role
+module "iam_role" {
+  source                  = "./modules/iam/role"
+  m_principals            = local.principals
+  m_description           = "Allows Lambda functions to call AWS services on your behalf."
+  m_force_detach_policies = false
+  m_managed_policy_arns   = ["${aws_iam_policy.lambda_policy.arn}"]
+  m_name                  = "api-dynamodb"
+  m_path                  = "/"
 }
 
 
@@ -195,7 +190,7 @@ resource "aws_lambda_function" "lambda" {
   function_name = "tf-lambda_api_gateway_dynamodb"
   handler       = "api-lambda.lambda_handler"
   memory_size   = 128
-  role          = "arn:aws:iam::${data.aws_caller_identity.account_id.id}:role/api-dynamodb"
+  role          = "arn:aws:iam::${data.aws_caller_identity.account_id.id}:role/${module.iam_role.iam_role_name}"
   runtime       = "python3.9"
   filename      = data.archive_file.lambda.output_path
   publish       = true
