@@ -7,6 +7,8 @@ terraform {
   }
 }
 
+data "aws_caller_identity" "account_id" {}
+data "aws_region" "current" {}
 
 #*  dynamodb table
 resource "aws_dynamodb_table" "dynamodb_table" {
@@ -22,7 +24,7 @@ resource "aws_dynamodb_table" "dynamodb_table" {
   }
 }
 
-# #*  api gateway
+#*  api gateway
 resource "aws_api_gateway_rest_api" "books_api" {
   api_key_source = "HEADER"
 
@@ -35,13 +37,13 @@ resource "aws_api_gateway_rest_api" "books_api" {
     create_before_destroy = false
   }
 
-
   endpoint_configuration {
     types = [
       "REGIONAL",
     ]
   }
 }
+
 
 resource "aws_api_gateway_resource" "books_path" {
   rest_api_id = aws_api_gateway_rest_api.books_api.id
@@ -64,7 +66,6 @@ locals {
       identifiers = ["lambda.amazonaws.com"]
     }
   }
-
 }
 
 
@@ -76,6 +77,7 @@ resource "aws_api_gateway_method" "api_mehtods" {
   resource_id      = aws_api_gateway_resource.books_path.id
   rest_api_id      = aws_api_gateway_rest_api.books_api.id
 }
+
 
 resource "aws_api_gateway_integration" "integration" {
   for_each                = local.http_methods
@@ -96,8 +98,8 @@ resource "aws_api_gateway_stage" "api_stage" {
   xray_tracing_enabled  = false
 
   depends_on = [aws_api_gateway_deployment.api_deployment]
-
 }
+
 
 resource "aws_api_gateway_deployment" "api_deployment" {
   rest_api_id = aws_api_gateway_rest_api.books_api.id
@@ -117,61 +119,15 @@ module "cloudwatch_logs" {
 }
 
 
-#*  policy 
-data "aws_caller_identity" "account_id" {}
-data "aws_region" "current" {}
-
-data "aws_iam_policy_document" "policy" {
-  statement {
-    sid = "VisualEditor0"
-
-    actions = [
-      "dynamodb:BatchGetItem",
-      "dynamodb:PutItem",
-      "dynamodb:DeleteItem",
-      "dynamodb:GetItem",
-      "dynamodb:Scan",
-      "dynamodb:Query",
-      "dynamodb:UpdateItem",
-    ]
-
-    resources = [
-      "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.account_id.id}:table/books"
-    ]
-  }
-
-  statement {
-    actions = [
-      "dynamodb:ListGlobalTables",
-      "dynamodb:ListTables",
-    ]
-    resources = ["arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.account_id.id}:*"]
-  }
-  statement {
-    effect = "Allow"
-    actions = [
-      "logs:CreateLogGroup",
-      "logs:CreateLogStream",
-      "logs:PutLogEvents"
-    ]
-    resources = ["arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.account_id.id}:log-group:${module.cloudwatch_logs.cloudwatch_name}:*"]
-  }
+#* policy and policy attachment
+module "iam_policy" {
+  source       = "./modules/iam/policy"
+  m_name       = "dynamodb_crud"
+  m_path       = "/"
+  m_policy_arn = module.iam_policy.policy_arn
+  m_role       = module.iam_role.iam_role_name
 }
 
-
-
-resource "aws_iam_policy" "lambda_policy" {
-  name   = "dynamodb_crud"
-  path   = "/"
-  policy = data.aws_iam_policy_document.policy.json
-}
-
-#*  policy attachment
-resource "aws_iam_role_policy_attachment" "policy_attach" {
-  policy_arn = aws_iam_policy.lambda_policy.arn
-  role       = module.iam_role.iam_role_name
-  depends_on = [module.iam_role, aws_iam_policy.lambda_policy]
-}
 
 #* role
 module "iam_role" {
@@ -179,7 +135,7 @@ module "iam_role" {
   m_principals            = local.principals
   m_description           = "Allows Lambda functions to call AWS services on your behalf."
   m_force_detach_policies = false
-  m_managed_policy_arns   = ["${aws_iam_policy.lambda_policy.arn}"]
+  m_managed_policy_arns   = ["${module.iam_policy.policy_arn}"]
   m_name                  = "api-dynamodb"
   m_path                  = "/"
 }
@@ -202,6 +158,7 @@ resource "aws_lambda_function" "lambda" {
   source_code_hash = data.archive_file.lambda.output_base64sha256
 }
 
+
 data "archive_file" "lambda" {
   type        = "zip"
   source_file = "api-lambda.py"
@@ -216,6 +173,7 @@ resource "aws_lambda_permission" "allow_api_gateway" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.books_api.execution_arn}/*/${aws_api_gateway_method.api_mehtods[each.key].http_method}/books"
 }
+
 
 resource "aws_lambda_permission" "allow_cloudwatch" {
   action        = "lambda:InvokeFunction"
