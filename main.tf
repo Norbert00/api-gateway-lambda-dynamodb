@@ -11,14 +11,14 @@ data "aws_caller_identity" "account_id" {}
 data "aws_region" "current" {}
 
 #*  dynamodb table
-resource "aws_dynamodb_table" "dynamodb_table" {
-  name           = "books"
-  billing_mode   = "PROVISIONED"
-  read_capacity  = 1
-  write_capacity = 1
-  hash_key       = "bookid"
-
-  attribute {
+module "dynamodb" {
+  source           = "./modules/dynamodb"
+  m_name           = "books"
+  m_billing_mode   = "PROVISIONED"
+  m_read_capacity  = 1
+  m_write_capacity = 1
+  m_hash_key       = "bookid"
+  m_attribute = {
     name = "bookid"
     type = "S"
   }
