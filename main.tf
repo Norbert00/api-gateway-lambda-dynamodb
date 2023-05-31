@@ -7,6 +7,7 @@ terraform {
   }
 }
 
+
 data "aws_caller_identity" "account_id" {}
 data "aws_region" "current" {}
 
@@ -23,6 +24,7 @@ module "dynamodb" {
     type = "S"
   }
 }
+
 
 #*  api gateway
 resource "aws_api_gateway_rest_api" "books_api" {
@@ -51,9 +53,22 @@ resource "aws_api_gateway_resource" "books_path" {
   path_part   = "books"
 }
 
+resource "aws_api_gateway_resource" "book_path" {
+  rest_api_id = aws_api_gateway_rest_api.books_api.id
+  parent_id   = aws_api_gateway_resource.books_path.id
+  path_part   = "book"
+}
+
+
+
+
+
 
 locals {
-  http_methods = {
+  http_methods_books = {
+    "GET" = "GET"
+  }
+  http_methods_book = {
     "GET"    = "GET"
     "POST"   = "POST"
     "PUT"    = "PUT"
@@ -69,8 +84,17 @@ locals {
 }
 
 
-resource "aws_api_gateway_method" "api_mehtods" {
-  for_each         = local.http_methods
+resource "aws_api_gateway_method" "api_mehtods_books" {
+  for_each         = local.http_methods_books
+  api_key_required = false
+  authorization    = "NONE"
+  http_method      = each.key
+  resource_id      = aws_api_gateway_resource.books_path.id
+  rest_api_id      = aws_api_gateway_rest_api.books_api.id
+}
+
+resource "aws_api_gateway_method" "api_mehtods_book" {
+  for_each         = local.http_methods_book
   api_key_required = false
   authorization    = "NONE"
   http_method      = each.key
@@ -110,6 +134,7 @@ resource "aws_api_gateway_deployment" "api_deployment" {
     create_before_destroy = false
   }
 }
+
 
 #* cloudwatch
 module "cloudwatch_logs" {
@@ -166,12 +191,20 @@ data "archive_file" "lambda" {
 }
 
 
-resource "aws_lambda_permission" "allow_api_gateway" {
-  for_each      = local.http_methods
+resource "aws_lambda_permission" "allow_api_gateway_books" {
+  for_each      = local.http_methods_books
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.lambda.arn
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.books_api.execution_arn}/*/${aws_api_gateway_method.api_mehtods[each.key].http_method}/books"
+  source_arn    = "${aws_api_gateway_rest_api.books_api.execution_arn}/*/${aws_api_gateway_method.api_mehtods_books[each.key].http_method_books}/books"
+}
+
+resource "aws_lambda_permission" "allow_api_gateway_book" {
+  for_each      = local.http_methods_book
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.lambda.arn
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.books_api.execution_arn}/*/${aws_api_gateway_method.api_mehtods_book[each.key].http_method_book}/book"
 }
 
 
